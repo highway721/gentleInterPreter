@@ -14,16 +14,49 @@
 
 
 using namespace std;
+
+
+//列挙型を使う理由としては演算子や値を数値として識別できるようにするため
+enum tokenType{Value,Plus,Minus,Mult,Divide};
+typedef tokenType tokenType;
+
+class Token{
+    double value;
+    tokenType type;
+public:
+    //コンストラクタ
+    Token(){};
+    Token(double v, tokenType t){
+        value = v;
+        type = t;
+    }
+    Token(double v){
+        value = v;
+        type = Value;
+    }
+    Token(tokenType t){
+        value = 0.0;
+        type = t;
+    }
+    //メンバー関数
+    double getValue(){return value;};
+    tokenType getType(){return type;};
+};
+
+
+
+
 //プロトタイプ宣言
-int GetTop2Elem(stack<double> &stack, double *a, double *b);
-void printstack(stack<double>);
+int GetTop2Elem(stack<Token> &stck, Token *a, Token *b);
+void printstack(stack<Token>);
 int isNumberString(string s);
 void syntaxError();
 
 int main(int argc, char *argv[]){
-    stack<double> stck;
+    Token tokv, tokop;
     double a,b;
     string s;
+    stack<Token> stck;
     
     //ユーザーの入力を受け取って出力するループ
     while (true) {
@@ -42,56 +75,64 @@ int main(int argc, char *argv[]){
         if (s.size()==1 && !isdigit(c)) {
             switch (c) {
                 case '+':
-                    if (GetTop2Elem(stck, &a, &b)) {
-                        break;
-                    }
-                    cout << a + b << endl;
-                    stck.push(a + b);
+                    stck.push(Token(Plus));
                     break;
                 case '-':
-                    //負の値が入力されたか調べる
-                    if (s.size() != 0) {
-                        //値をスタックにプッシュする
-                        stck.push(atof(s.c_str()));
-                        break;
-                    }
-                    if (GetTop2Elem(stck, &a, &b)) {
-                        break;
-                    }
-                    cout << b - a << endl;
-                    stck.push(b - a);
+                    stck.push(Token(Minus));
                     break;
+                    
                 case '*':
-                    if (GetTop2Elem(stck, &a, &b)) {
-                        break;
-                    }
-                    cout << a * b << endl;
-                    stck.push(a * b);
+                    stck.push(Token(Mult));
                     break;
                 case '/':
-                    if (GetTop2Elem(stck, &a, &b)) {
-                        break;
-                    }
-                    cout << a * b << endl;
-                    stck.push(a * b);
+                    stck.push(Token(Divide));
                     break;
                 default:
-                    //入力された値は数値とみなしてスタックに値をプッシュする
-                    stck.push(atof(s.c_str()));
+                    syntaxError();
                     break;
             }
             continue;
         }
         //値が入力されたか調べる
         if (isNumberString(s)) {
-            stck.push(atof(s.c_str()));
+            //スタックの中身は2個未満の場合、値をスタックにプッシュする
+            if (stck.size() < 2) {
+                stck.push(atof(s.c_str()));
+            }else{
+                //スタックに演算子と数が入っているはず
+                GetTop2Elem(stck, &tokop, &tokv);
+                a = atof(s.c_str());
+                b = tokv.getValue();
+                switch (tokop.getType()) {
+                    case Plus:
+                        cout << a + b << endl;
+                        stck.push(Token(a + b));
+                        break;
+                    case Minus:
+                        cout << b - a << endl;
+                        stck.push(Token(b - a));
+                        break;
+                    case Mult:
+                        cout << a * b << endl;
+                        stck.push(Token(a * b ));
+                        break;
+                    case Divide:
+                        cout << b / a << endl;
+                        stck.push(Token(b / a));
+                        break;
+                    default:
+                        syntaxError();
+                        break;
+                }
+            }
         }else{
             syntaxError();
         }
-        
     }
+    return 0;
 }
-int GetTop2Elem(stack<double> &stck, double *a, double *b){
+
+int GetTop2Elem(stack<Token> &stck, Token *a, Token *b){
     if (stck.size() < 2) {
         cout << "オペランドが足りません" << endl;
         return -1;
@@ -103,13 +144,16 @@ int GetTop2Elem(stack<double> &stck, double *a, double *b){
     return 0;
 }
 
-void printstack(stack<double> stck){
-    stack<double> tmpstck;
+string tokenTypeName[]= {"Value","Plus","Minus","Mult","Divide"};
+
+void printstack(stack<Token> stck){
+    stack<Token> tmpstck;
     tmpstck = stck;
     cout << "--- stack top ---" << endl;
     int n = (int)tmpstck.size();
     for(int i = 0;i<n;i++){
-        cout << tmpstck.top() << endl;
+        Token t = tmpstck.top();
+        cout << tokenTypeName[t.getType()] << ":" << t.getValue() << endl;
         tmpstck.pop();
     }
     cout << "--- stack bottom ---" << endl;
@@ -119,6 +163,7 @@ string trim(string ss)
   ss.erase(std::remove(ss.begin(),ss.end(),' '),ss.end());
   return ss;
 }
+
 
 int isNumberString(string ss){
     string s = trim(ss);
