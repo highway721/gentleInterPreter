@@ -11,53 +11,15 @@
 #include <cstdlib>//atof()のため
 #include <cctype>//isDigit()のため
 #include "util.h"
-
-
+#include "main.h"
 using namespace std;
-
-
-//列挙型を使う理由としては演算子や値を数値として識別できるようにするため
-enum tokenType{Value,Plus,Minus,Mult,Divide};
-typedef tokenType tokenType;
-
-class Token{
-    double value;
-    tokenType type;
-public:
-    //コンストラクタ
-    Token(){};
-    Token(double v, tokenType t){
-        value = v;
-        type = t;
-    }
-    Token(double v){
-        value = v;
-        type = Value;
-    }
-    Token(tokenType t){
-        value = 0.0;
-        type = t;
-    }
-    //メンバー関数
-    double getValue(){return value;};
-    tokenType getType(){return type;};
-};
-
-
-
-
-//プロトタイプ宣言
-int GetTop2Elem(stack<Token> &stck, Token *a, Token *b);
-void printstack(stack<Token>);
-int isNumberString(string s);
-void syntaxError();
+//スタック（グローバル）
+stack<Token> stck;
 
 int main(int argc, char *argv[]){
-    Token tokv, tokop;
-    double a,b;
+    Token top, top_1;
     string s;
-    stack<Token> stck;
-    
+    double a,b;
     //ユーザーの入力を受け取って出力するループ
     while (true) {
         cout << "->";
@@ -72,7 +34,7 @@ int main(int argc, char *argv[]){
         }
         char c = s[0];
         //演算子とみなす
-        if (s.size()==1 && !isdigit(c)) {
+        if (s.size() == 1 && !isdigit(int(c))) {
             switch (c) {
                 case '+':
                     stck.push(Token(Plus));
@@ -87,6 +49,12 @@ int main(int argc, char *argv[]){
                 case '/':
                     stck.push(Token(Divide));
                     break;
+                case '(':
+                    stck.push(Token(LParen));
+                    break;
+                case ')':
+                    processRparen(stck);
+                    break;
                 default:
                     syntaxError();
                     break;
@@ -97,32 +65,43 @@ int main(int argc, char *argv[]){
         if (isNumberString(s)) {
             //スタックの中身は2個未満の場合、値をスタックにプッシュする
             if (stck.size() < 2) {
-                stck.push(atof(s.c_str()));
+                stck.push(Token(atof(s.c_str())));
             }else{
-                //スタックに演算子と数が入っているはず
-                GetTop2Elem(stck, &tokop, &tokv);
-                a = atof(s.c_str());
-                b = tokv.getValue();
-                switch (tokop.getType()) {
-                    case Plus:
-                        cout << a + b << endl;
-                        stck.push(Token(a + b));
-                        break;
-                    case Minus:
-                        cout << b - a << endl;
-                        stck.push(Token(b - a));
-                        break;
-                    case Mult:
-                        cout << a * b << endl;
-                        stck.push(Token(a * b ));
-                        break;
-                    case Divide:
-                        cout << b / a << endl;
-                        stck.push(Token(b / a));
-                        break;
-                    default:
-                        syntaxError();
-                        break;
+                //スタックの２つの要素を取り出す
+                GetTop2Elem(stck, &top, &top_1);
+                tokenType tt = top.getType();
+                if (tt > Value && tt < LParen) {
+                    tt = top_1.getType();
+                    if (tt == Value) {
+                        a = atof(s.c_str());
+                        b = top_1.getValue();
+                        switch (top.getType()) {
+                            case Plus:
+                                cout << a + b << endl;
+                                stck.push(Token(a + b));
+                                break;
+                            case Minus:
+                                cout << b - a << endl;
+                                stck.push(Token(b - a));
+                                break;
+                            case Mult:
+                                cout << a * b << endl;
+                                stck.push(Token(a * b ));
+                                break;
+                            case Divide:
+                                cout << b / a << endl;
+                                stck.push(Token(b / a));
+                                break;
+                            default:
+                                syntaxError();
+                                break;
+                        }
+                    }
+                }
+                if (tt == LParen) {
+                    stck.push(top_1);
+                    stck.push(top);
+                    stck.push(Token(atof(s.c_str())));
                 }
             }
         }else{
@@ -131,6 +110,49 @@ int main(int argc, char *argv[]){
     }
     return 0;
 }
+//右括弧)の処理
+int processRparen(stack<Token> &stck){
+    int n = stck.size();
+    if (n < 4) {
+        double v = stck.top().getValue();
+        cout << v << endl;
+        for (int i = 0; i < n; i++) {
+            stck.pop();
+        }
+        stck.push(Token(v));
+        return 0;
+    }
+    //スタックの４つの要素を取り出す
+    Token top, top_1, top_2, top_3;
+    GetTop2Elem(stck, &top, &top_1);
+    GetTop2Elem(stck, &top_2, &top_3);
+    double a = top.getValue();
+    double b = top_3.getValue();
+    tokenType tt = top_2.getType();
+    switch (tt) {
+        case Plus:
+            cout << a + b << endl;
+            stck.push(Token(a + b));
+            break;
+        case Minus:
+            cout << b - a << endl;
+            stck.push(Token(b - a));
+            break;
+        case Mult:
+            cout << a * b << endl;
+            stck.push(Token(a * b ));
+            break;
+        case Divide:
+            cout << b / a << endl;
+            stck.push(Token(b / a));
+            break;
+        default:
+            syntaxError();
+            break;
+    }
+    return 0;
+}
+
 
 int GetTop2Elem(stack<Token> &stck, Token *a, Token *b){
     if (stck.size() < 2) {
